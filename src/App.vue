@@ -1,9 +1,40 @@
 <template>
-  <div class="wrapper"></div>
+  <div class="wrapper">
+    <MyNotification :notifications="notifications" />
+    <div class="container">
+      <div class="head">
+        <div class="head__title">Добавление товара</div>
+        <MyFilter
+          @select="selectOption"
+          @openFilter="openFilter"
+          :isFilterVisible="isFilterVisible"
+          :options="options"
+          :selected="selected"
+        />
+      </div>
+      <div class="content">
+        <MyForm @create="createCard" @addNotification="addNotification" />
+        <MyCardList @remove="removeCard" :cards="sortedCards" />
+      </div>
+    </div>
+    <MyPreloader v-if="isLoading" />
+  </div>
 </template>
 
 <script>
+import MyFilter from '@/components/MyFilter'
+import MyCardList from '@/components/MyCardList'
+import MyForm from '@/components/MyForm'
+import MyNotification from '@/components/MyNotification'
+import MyPreloader from '@/components/MyPreloader'
 export default {
+  components: {
+    MyFilter,
+    MyCardList,
+    MyForm,
+    MyNotification,
+    MyPreloader
+  },
   name: 'App',
   data () {
     return {
@@ -71,9 +102,119 @@ export default {
         }
       ]
     }
+  },
+  computed: {
+    sortedCards () {
+      if (this.selected.value === 'minPrice') {
+        return [...this.cards].sort(
+          (itemA, itemB) => itemA.price - itemB.price
+        )
+      }
+      if (this.selected.value === 'maxPrice') {
+        return [...this.cards].sort(
+          (itemA, itemB) => itemB.price - itemA.price
+        )
+      }
+      if (this.selected.value === 'byName') {
+        return [...this.cards].sort((itemA, itemB) =>
+          itemA.name.localeCompare(itemB.name)
+        )
+      }
+      return this.cards
+    }
+  },
+  methods: {
+    preload (time) {
+      this.isLoading = true
+      setTimeout(() => {
+        this.isLoading = false
+      }, time)
+    },
+    addNotification (item) {
+      this.notifications.unshift(item)
+    },
+    hideNotification () {
+      const vm = this
+      if (this.notifications.length) {
+        setTimeout(() => {
+          vm.notifications.splice(vm.notifications.length - 1, 1)
+        }, 3000)
+      }
+    },
+    removeCard (card) {
+      this.cards = this.cards.filter((item) => item.id !== card.id)
+      this.saveCardsToLocalStorage()
+    },
+    createCard (card) {
+      this.cards.unshift(card)
+      this.saveCardsToLocalStorage()
+    },
+    selectOption (option) {
+      this.selected = option
+    },
+    openFilter () {
+      this.isFilterVisible = true
+    },
+    hideFilter () {
+      this.isFilterVisible = false
+    },
+    saveCardsToLocalStorage () {
+      const newCardsList = JSON.stringify(this.cards)
+      localStorage.setItem('cards', newCardsList)
+    }
+  },
+  watch: {
+    notifications () {
+      this.hideNotification()
+    }
+  },
+  mounted () {
+    if (localStorage.cards) {
+      this.cards = JSON.parse(localStorage.getItem('cards'))
+    }
+    this.preload(500)
+    this.hideNotification()
+    document.addEventListener('click', this.hideFilter, true)
+  },
+  beforeDestroy () {
+    document.removeEventListener('click', this.hideFilter)
   }
 }
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
+.wrapper {
+  padding: 3.2rem;
+  position: relative;
+}
+.content {
+  display: flex;
+}
+.head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1.6rem;
+  &__title {
+    font-size: 2.5rem;
+    line-height: 1.25;
+    font-weight: 600;
+  }
+}
+@media (max-width: 768px) {
+  .wrapper {
+    padding: 1.6rem;
+  }
+  .content {
+    flex-direction: column;
+  }
+}
+@media (max-width: 500px) {
+  .head {
+    &__title {
+      width: 50%;
+    }
+  }
+}
 </style>
